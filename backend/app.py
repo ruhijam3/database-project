@@ -40,6 +40,62 @@ def get_sites():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+# added for phase 2
+    # POST /location  -> insert one location
+@app.route('/location', methods=['POST'])
+def create_location():
+    data = request.get_json(force=True) or {}
+    # adjust field names if your column names differ
+    required = ['name', 'city', 'latitude', 'longitude']
+    missing = [k for k in required if data.get(k) in (None, "")]
+    if missing:
+        return jsonify({'error': f"missing fields: {', '.join(missing)}"}), 400
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        new_id = str(uuid4())
+        cur.execute("""
+            INSERT INTO egypt_heritage.location
+              (id, name, street, city, zip_code, latitude, longitude)
+            VALUES (%s, %s, %s, %s, %s, %s, %s);
+        """, (
+            new_id,
+            data['name'],
+            data.get('street'),
+            data['city'],
+            data.get('zip_code'),
+            data['latitude'],
+            data['longitude'],
+        ))
+        conn.commit()
+        cur.close(); conn.close()
+        return jsonify({'id': new_id}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# DELETE /location/<id>  -> delete by UUID
+@app.route('/location/<id>', methods=['DELETE'])
+def delete_location(id):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM egypt_heritage.location WHERE id = %s;", (id,))
+        deleted = cur.rowcount
+        conn.commit()
+        cur.close(); conn.close()
+
+        if deleted == 0:
+            return jsonify({'error': 'not found'}), 404
+        return jsonify({'deleted': id}), 200
+
+    except psycopg2.Error as e:
+        # foreign-key conflict (row referenced elsewhere)
+        if getattr(e, "pgcode", None) == "23503":
+            return jsonify({'error': 'Cannot delete: row is referenced by other records.'}), 409
+        return jsonify({'error': str(e)}), 500
+
 #@app.route('/items', methods=['GET'])
 #def get_items():
     # ... code here
