@@ -58,10 +58,9 @@ def create_location():
         new_id = str(uuid4())
         cur.execute("""
             INSERT INTO egypt_heritage.location
-              (id, name, street, city, zip_code, latitude, longitude)
-            VALUES (%s, %s, %s, %s, %s, %s, %s);
+              (name, street, city, zip_code, latitude, longitude)
+            VALUES (%s, %s, %s, %s, %s, %s);
         """, (
-            new_id,
             data['name'],
             data.get('street'),
             data['city'],
@@ -71,24 +70,25 @@ def create_location():
         ))
         conn.commit()
         cur.close(); conn.close()
-        return jsonify({'id': new_id}), 201
+        return jsonify({'name': data['name']}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# DELETE /location/<id>  -> delete by UUID
-@app.route('/location/<id>', methods=['DELETE'])
-def delete_location(id):
+# DELETE /location/<name>  -> delete by name
+@app.route('/location/<name>', methods=['DELETE'])
+def delete_location(name):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("DELETE FROM egypt_heritage.location WHERE id = %s;", (id,))
+        cur.execute("DELETE FROM egypt_heritage.site WHERE dname = %s;", (name,))
+        cur.execute("DELETE FROM egypt_heritage.location WHERE name = %s;", (name,))
         deleted = cur.rowcount
         conn.commit()
         cur.close(); conn.close()
 
         if deleted == 0:
             return jsonify({'error': 'not found'}), 404
-        return jsonify({'deleted': id}), 200
+        return jsonify({'deleted': name}), 200
 
     except psycopg2.Error as e:
         # foreign-key conflict (row referenced elsewhere)
